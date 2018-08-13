@@ -30,7 +30,7 @@ class DFNLUPlugin(subscriber):
         self.eb = eb
 
         try:
-            self.access_key = conf['NLU']['df_access_key']
+            self.access_key = conf['DFNLU']['access_key']
         except KeyError:
             raise ValueError('No DialogFlow API access!')
 
@@ -56,7 +56,7 @@ class DFNLUPlugin(subscriber):
             try:
                 request = self.apiai.text_request()
                 request.lang = 'ru'
-                request.session_id = '3942390809'
+                request.session_id = conf['DFNLU']['sessionid']
                 request.query = data
                 jres = json.loads(request.getresponse().read().decode('utf-8'), encoding='utf-8')['result']
                 return DFResult(jres)
@@ -65,7 +65,7 @@ class DFNLUPlugin(subscriber):
         return None
 
 
-def init(eventbus):
-    target = DFNLUPlugin(eventbus)
-    eventbus.on('broadcast', target)
-    eventbus.on('nlu', target)
+def init(core):
+    target = DFNLUPlugin(core.eventbus())
+    core.eventbus().on('broadcast', target)
+    core.eventbus().on('nlu', target)
