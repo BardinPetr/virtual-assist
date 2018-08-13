@@ -7,11 +7,17 @@ class XEvent:
     data = None
     cmd = None
 
-    def __init__(self, eventobj):
+    def __init__(self, eventobj=None, m=None, d=None, c=None):
         if not isinstance(eventobj, event):
-            print('Invalid object type is passed.')
-        data = eventobj.get_data()
-        self.module, self.data, self.cmd = eventobj.get_topic(), data['data'], data['cmd']
+            self.module = m
+            self.data = d
+            self.cmd = c
+        else:
+            data = eventobj.get_data()
+            self.module, self.data, self.cmd = eventobj.get_topic(), data['data'], data['cmd']
+
+    def __call__(self, eb):
+        eb.send(self.module, {'cmd': self.cmd, 'data': self.data})
 
 
 class EventBus:
