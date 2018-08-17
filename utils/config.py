@@ -9,10 +9,10 @@ class Config:
     dirname = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
     def __init__(self):
-        l.log('Config loading started')
+        # l.log('Config loading started')
         self.c = configparser.ConfigParser()
         self.c.read(os.path.join(Config.dirname, 'config.ini'))
-        l.log('Config loading finished')
+        # l.log('Config loading finished')
 
     def __setitem__(self, key, value):
         self.c[key] = value

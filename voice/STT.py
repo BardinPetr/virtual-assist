@@ -41,7 +41,10 @@ class YandexSTTPlugin(subscriber):
             except Exception as ex:
                 lg.error("Exception in STT: %s" % str(ex))
             else:
-                self.eb.send('result', 'stt-result-ok', res)
+                if res:
+                    self.eb.send('result', 'stt-result-ok', res)
+        elif event.cmd == 'shutdown':
+            self.eb.halted(__file__)
 
     @staticmethod
     def read_chunks(chunk_size, bytes):
@@ -52,7 +55,8 @@ class YandexSTTPlugin(subscriber):
             if not bytes:
                 break
 
-    def speech_to_text(self, key, filename=None, bytes=None, request_id=uuid.uuid4().hex, topic='notes', lang='ru-RU'):
+    def speech_to_text(self, key, filename=None, bytes=None, request_id=uuid.uuid4().hex, topic='queries',
+                       lang='ru-RU'):
         lg.info('Transcribing file %s' % (filename or "%BYTES%"))
         if filename:
             with open(filename, 'br') as file:
@@ -99,7 +103,7 @@ class YandexSTTPlugin(subscriber):
                         max_confidence = float(child.attrib['confidence'])
 
                 if max_confidence != - float("inf"):
-                    lg.info('Result fetched')
+                    lg.info('Result fetched: %s' % text)
                     return text
                 else:
                     lg.error('No text in STT response found.\nData:\n%s' % response_text)

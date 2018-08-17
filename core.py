@@ -7,7 +7,7 @@ import os
 here = os.path.abspath(os.path.dirname(__file__))
 get_path = partial(os.path.join, here)
 
-plugin_base = PluginBase(package='virtual-assist.plugins',
+plugin_base = PluginBase(package='plugins',
                          searchpath=[os.path.join(os.getcwd(), 'plugins', 'user'),
                                      os.path.join(os.getcwd(), 'plugins', 'system')])
 
@@ -34,6 +34,9 @@ class Core(subscriber):
         if event.module == 'result':
             if event.cmd == 'stt-result-ok':
                 self.eb.send('nlu', 'run', event.data)
+        elif event.module == 'broadcast':
+            if event.cmd == 'shutdown':
+                self.eb.halted(__file__)
 
     def eventbus(self):
         return self.eb
@@ -42,4 +45,5 @@ class Core(subscriber):
 def init(eventbus):
     target = Core(eventbus)
     eventbus.on('broadcast', target)
-    eventbus.on('results', target)
+    eventbus.on('result', target)
+    eventbus.send('nlu', 'run', "test")

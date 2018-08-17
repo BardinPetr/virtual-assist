@@ -198,4 +198,7 @@ pip-selfcheck.json
 # temp recordings
 recording.wav
 
+# Params/config
+config.ini
+
 # End of https://www.gitignore.io/api/python,pycharm

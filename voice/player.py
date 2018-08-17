@@ -20,6 +20,7 @@ class Player(subscriber):
             self.play(event.data)
         elif event.cmd == 'shutdown':
             self.terminate()
+            self.eb.halted(__file__)
 
     def play(self, file):
         lg.log('Playing file %s' % file)

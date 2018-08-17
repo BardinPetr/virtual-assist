@@ -1,6 +1,7 @@
 from geeteventbus.subscriber import subscriber
 from utils import Logger, XEvent, Config
 from yandex_speech import TTS as YaTTS
+from hashlib import md5
 import os
 
 conf = Config()
@@ -40,30 +41,36 @@ class YandexTTSPlugin(subscriber):
         event = XEvent(eventobj)
         if event.cmd == 'run':
             self.say(**event.data)
+        elif event.cmd == 'shutdown':
+            self.eb.halted(__file__)
 
     def say(self, phrase, **kwargs):
         """
         Method used to utter words using the Yandex TTS plugin
         :param phrase:
         """
-        lg.info('Preparing TTS...')
+        phash = md5(phrase.encode('utf-8')).hexdigest()
+        fname = os.path.join(os.getcwd(), 'temp_voice', '%s.wav' % phash)
         try:
-            if not self.tts:
-                self.tts = YaTTS(self.voice,
-                                 "wav",
-                                 lang=self.language,
-                                 key=self.access_key)
-        except Exception as ex:
-            lg.error("Exception while loading TTS: %s" % str(ex))
-            return None
-        lg.info('Running TTS for phrase "%s"' % phrase)
-        fname = None
-        try:
-            self.tts.generate(phrase)
-            fname = self.tts.save()
-        except Exception as ex:
-            lg.error("Exception while running TTS: %s" % str(ex))
-            return None
+            open(fname, 'r')
+        except FileNotFoundError:
+            lg.info('Preparing TTS...')
+            try:
+                if not self.tts:
+                    self.tts = YaTTS(self.voice,
+                                     "wav",
+                                     lang=self.language,
+                                     key=self.access_key)
+            except Exception as ex:
+                lg.error("Exception while loading TTS: %s" % str(ex))
+                return None
+            lg.info('Running TTS for phrase "%s"' % phrase)
+            try:
+                self.tts.generate(phrase)
+                self.tts.save(path=fname)
+            except Exception as ex:
+                lg.error("Exception while running TTS: %s" % str(ex))
+                return None
         with open(fname, 'rb') as f:
             data = f.read()
         if kwargs.get('autoplay', True):

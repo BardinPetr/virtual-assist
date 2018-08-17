@@ -39,6 +39,8 @@ class EventScheduler(subscriber):
             elif event.cmd == 'del':
                 self.events[id].killself()
                 self.events.pop(id)
+        elif event.cmd == 'shutdown':
+            self.eb.halted(__file__)
 
 
 def init(core):

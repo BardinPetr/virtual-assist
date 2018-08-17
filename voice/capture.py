@@ -1,5 +1,5 @@
 from geeteventbus.subscriber import subscriber
-from snowboy import snowboydecoder
+from lib.snowboy import snowboydecoder
 from utils.eventbus import XEvent
 from utils.logger import Logger
 from utils.config import Config
@@ -12,30 +12,35 @@ lg = Logger(__file__)
 
 
 class Capture(subscriber):
-    MAX_RECORDING_LENGTH = 8
+    MAX_RECORDING_LENGTH = 5
 
     VAD_SAMPLERATE = 16000
     VAD_FRAME_MS = 30
     VAD_PERIOD = int((VAD_SAMPLERATE / 1000) * VAD_FRAME_MS)
-    VAD_SILENCE_TIMEOUT = 1000
+    VAD_SILENCE_TIMEOUT = 500
     VAD_THROWAWAY_FRAMES = 10
 
     _vad = None
     _hwd = None
     _config = None
     _state_callback = None
+    running = False
 
     def __init__(self, eb):
         super().__init__()
+        lg.info('Voice capture service starting...')
         self._config = Config()['AUDIO']
-        self.validate_config()
         self.running = False
+        self.halt = False
         self.eb = eb
 
     def process(self, eventobj):
         event = XEvent(eventobj)
         if event.cmd == 'shutdown':
-            pass
+            lg.log('Shutting down')
+            self.halt = True
+            self._hwd.terminate()
+            self.eb.halted(__file__)
 
     def validate_config(self):
         input_device = self._config['input_device']
@@ -45,13 +50,19 @@ class Capture(subscriber):
             raise Exception(
                 "Your input_device '" + input_device + "' is invalid. Use one of the following:\n"
                 + '\n'.join(input_devices))
+        self.setup()
 
     def setup(self, state_callback=None):
         self._vad = webrtcvad.Vad(2)
         self._state_callback = state_callback
 
-        self._hwd = snowboydecoder.HotwordDetector("../assets/hotwords/h0.pmdl", sensitivity=0.1, audio_gain=1)
-        self._hwd.start(lambda x: self.silence_listener())
+        self._hwd = snowboydecoder.HotwordDetector("assets/hotwords/h0.pmdl",
+                                                   sensitivity=1)
+        self._hwd.start(lambda: self.silence_listener(),
+                        interrupt_check=lambda: self.halt)
+        lg.info('Voice capture service started')
+
+        self.silence_listener()
 
     def silence_listener(self, throwaway_frames=None, force_record=None):
         if self.running:
@@ -69,7 +80,7 @@ class Capture(subscriber):
         inp.setformat(alsaaudio.PCM_FORMAT_S16_LE)
         inp.setperiodsize(self.VAD_PERIOD)
 
-        audio = wave.open('../temp_voice/' + 'recording.wav', 'wb')
+        audio = wave.open('temp_voice/' + 'recording.wav', 'wb')
         audio.setframerate(self.VAD_SAMPLERATE)
         audio.setnchannels(1)
         audio.setsampwidth(2)
@@ -121,16 +132,13 @@ class Capture(subscriber):
                 if (num_silence_runs != 0) and ((silence_run * self.VAD_FRAME_MS) > self.VAD_SILENCE_TIMEOUT):
                     threshold_silence_met = True
 
-        lg.debug("End recording")
-
         inp.close()
-
-        if self._state_callback:
-            self._state_callback(False)
-
         audio.close()
 
+        self.eb.send('stt', 'run', 'temp_voice/' + 'recording.wav')
+
         self.running = False
+        lg.debug("End recording")
         return
 
 
@@ -138,3 +146,4 @@ def init(eventbus):
     target = Capture(eventbus)
     eventbus.on('capture', target)
     eventbus.on('broadcast', target)
+    target.validate_config()  # Blocking call

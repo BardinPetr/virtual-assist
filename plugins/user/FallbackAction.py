@@ -5,7 +5,7 @@ conf = Config()
 lg = Logger(__file__)
 
 
-class MyPlugin(subscriber):
+class FallbackAction(subscriber):
     def __init__(self, eb):
         super().__init__()
         self.eb = eb
@@ -14,11 +14,13 @@ class MyPlugin(subscriber):
         event = XEvent(eventobj)
         if event.cmd == 'shutdown':
             self.eb.halted(__file__)
+        elif event.module == 'result' and \
+                event.cmd == 'nlu-result-ok' and \
+                event.data.action == 'input.unknown':
+            self.eb.send('tts', 'run', {"phrase": event.data.speech})
 
 
 def init(core):
-    target = MyPlugin(core.eventbus())
+    target = FallbackAction(core.eventbus())
     core.eventbus().on('broadcast', target)
-    core.eventbus().on('smth0', target)
-    core.eventbus().on('smth1', target)
-    core.eventbus().on('smth2', target)
+    core.eventbus().on('result', target)
